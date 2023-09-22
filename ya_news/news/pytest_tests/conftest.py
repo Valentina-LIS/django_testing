@@ -1,10 +1,18 @@
 import datetime
 
 import pytest
+from django.urls import reverse
 from django.utils import timezone
 
 from news.models import News, Comment
-from yanews import settings
+from django.conf import settings
+
+PK = 1
+HOME_URL = reverse('news:home')
+DETAIL_URL = reverse('news:detail', args=(PK,))
+LOGIN_URL = reverse('users:login')
+EDIT_URL = reverse('news:edit', args=(PK,))
+DELETE_URL = reverse('news:delete', args=(PK,))
 
 
 @pytest.fixture
@@ -58,11 +66,9 @@ def comment_pk_for_args(comment):
     return comment.pk,
 
 
-today = datetime.datetime.today()
-
-
 @pytest.fixture
 def news_list():
+    today = datetime.datetime.today()
     all_news = [News(title=f'Новость {index}',
                      text=f'Просто текст {index}',
                      date=today - datetime.timedelta(index))
@@ -74,20 +80,19 @@ def news_list():
 @pytest.fixture
 def form_data(news):
     return {
-        'news': news,
         'text': 'Новый текст',
-        'created': timezone.now()
     }
 
 
 @pytest.fixture
 def comments(news, author):
-    comments_list = [Comment(
-        news=news,
-        text='Текст',
-        created=today + timezone.timedelta(days=index),
-        author=author
-    )
-        for index in range(2)]
-    all_comments = Comment.objects.bulk_create(comments_list)
-    return all_comments
+    today = datetime.datetime.today()
+    for index in range(2):
+        comments_list = Comment.objects.create(
+            news=news,
+            text=f'Tекст {index}',
+            author=author,
+        )
+        comments_list.created = today + timezone.timedelta(days=index)
+        comments_list.save()
+    return comments

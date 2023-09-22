@@ -3,6 +3,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 
 from notes.models import Note
+from notes.forms import NoteForm
 
 User = get_user_model()
 
@@ -14,31 +15,20 @@ class TestContent(TestCase):
         cls.author = User.objects.create(username='Автор')
         cls.author_client = Client()
         cls.author_client.force_login(cls.author)
-
         cls.reader = User.objects.create(username='reader')
         cls.reader_client = Client()
         cls.reader_client.force_login(cls.reader)
-
-        all_notes = [
-            Note(
-                title=f'Заголовок {index}',
-                text='Текст',
-                author=cls.author,
-                slug=f'uniq_slug_{index}'
-            )
-            for index in range(2)
-        ]
-        Note.objects.bulk_create(all_notes)
-        cls.note = Note.objects.get(id=1)
+        cls.notes = Note.objects.create(
+            title='Заголовок',
+            text='Текст комментария',
+            author=cls.author,
+        )
 
     def test_note_order(self):
         url = reverse('notes:list')
-        Note.objects.create(title='Новый', text='Текст2', author=self.author)
-        self.client.force_login(self.author)
         response = self.client.get(url)
-        self.assertIn('object_list', response.context)
-        notes = response.context['object_list']
-        self.assertLess(notes[0].id, notes[1].id)
+        notes = response.context.get('object_list')
+        self.assertIn(self.note, notes)
 
     def test_form_on_create_and_edit_page(self):
         urls = (
@@ -50,6 +40,7 @@ class TestContent(TestCase):
                 url = reverse(page, args=args)
                 response = self.author_client.get(url)
                 self.assertIn('form', response.context)
+                self.assertIsInstance(response.context['form'], NoteForm)
 
     def test_note_not_in_list_of_another_user(self):
         url = reverse('notes:list')

@@ -3,6 +3,7 @@ from http import HTTPStatus
 import pytest
 from django.urls import reverse
 from pytest_django.asserts import assertRedirects
+from news.pytest_tests.conftest import LOGIN_URL
 
 
 @pytest.mark.parametrize(
@@ -53,7 +54,7 @@ def test_availability_for_comment_edit_and_delete(
 )
 @pytest.mark.django_db
 def test_redirect_for_anonymous_client(client, name, args):
-    login_url = reverse('users:login')
+    login_url = LOGIN_URL
     url = reverse(name, args=args)
     expected_url = f'{login_url}?next={url}'
     response = client.get(url)
