@@ -1,11 +1,11 @@
 import datetime
 
 import pytest
+from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
 
-from news.models import News, Comment
-from django.conf import settings
+from news.models import Comment, News
 
 PK = 1
 HOME_URL = reverse('news:home')

@@ -5,33 +5,29 @@ from pytest_django.asserts import assertRedirects, assertFormError
 
 from news.forms import BAD_WORDS, WARNING
 from news.models import Comment
-
-from news.pytest_tests.conftest import (LOGIN_URL, DETAIL_URL,
-                                        EDIT_URL, DELETE_URL)
+from news.pytest_tests.conftest import (DELETE_URL, DETAIL_URL,
+                                        EDIT_URL, LOGIN_URL)
 
 
 @pytest.mark.django_db
 def test_anonymous_user_cant_create_comment(client, form_data):
-    comments_count = set(Comment.objects.all())
-    url = DETAIL_URL
-    response = client.post(url, data=form_data)
-    login_url = LOGIN_URL
-    expected_redirect = f'{login_url}?next={url}'
+    comments_count = Comment.objects.count()
+    response = client.post(DETAIL_URL, data=form_data)
+    expected_redirect = f'{LOGIN_URL}?next={DETAIL_URL}'
     assertRedirects(response, expected_redirect)
-    all_comments = set(Comment.objects.all())
+    all_comments = Comment.objects.count()
     assert comments_count == all_comments
 
 
 @pytest.mark.django_db
 def test_user_can_create_comment(author_client, form_data,
                                  author, news):
-    url = DETAIL_URL
-    response = author_client.post(url, data=form_data)
-    expected_url = f'{url}#comments'
-    assertRedirects(response, expected_url)
     comments_count = Comment.objects.count()
-    assert comments_count == 1
-    new_comment = Comment.objects.get()
+    response = author_client.post(DETAIL_URL, data=form_data)
+    expected_url = f'{DETAIL_URL}#comments'
+    assertRedirects(response, expected_url)
+    created_comments = Comment.objects.count() - comments_count
+    new_comment = created_comments.pop()
     assert new_comment.text == form_data['text']
     assert new_comment.author == author
     assert new_comment.news == news
@@ -39,24 +35,23 @@ def test_user_can_create_comment(author_client, form_data,
 
 @pytest.mark.django_db
 def test_user_cant_use_bad_words(admin_client, form_data):
+    comments_count = Comment.objects.count()
     form_data['text'] = f'Какой-то текст, {BAD_WORDS[0]}, еще текст'
-    url = DETAIL_URL
-    response = admin_client.post(url, data=form_data)
+    response = admin_client.post(DETAIL_URL, data=form_data)
     assertFormError(response, 'form', 'text', errors=WARNING)
-    assert Comment.objects.count() == 0
+    all_comments = Comment.objects.count()
+    assert all_comments == comments_count
 
 
 @pytest.mark.django_db
 def test_author_can_edit_comment(author_client, form_data,
                                  comment, author):
-    url = EDIT_URL
     news_url = DETAIL_URL + '#comments'
-    response = author_client.post(url, data=form_data)
+    response = author_client.post(EDIT_URL, data=form_data)
     assertRedirects(response, news_url)
     comment.refresh_from_db()
     comment_from_db = Comment.objects.get(id=comment.id)
     assert comment.text == form_data['text']
-    assert comment.text == comment_from_db.text
     assert comment.author == author
     assert comment.created == comment_from_db.created
     assert comment.news == comment_from_db.news
@@ -64,34 +59,38 @@ def test_author_can_edit_comment(author_client, form_data,
 
 @pytest.mark.django_db
 def test_author_can_delete_comment(author_client, comment):
-    url = DELETE_URL
     news_url = DETAIL_URL + '#comments'
-    response = author_client.delete(url)
+    response = author_client.delete(DELETE_URL)
     assertRedirects(response, news_url)
-    assert response != news_url
-    assert Comment.objects.count() == 0
+    assert not Comment.objects.filter(pk=comment.pk).exists()
 
 
 @pytest.mark.django_db
-def test_user_cant_delete_comment_of_another_user(reader_client,
+def test_user_cant_delete_comment_of_another_user(reader_client, comment,
                                                   comment_pk_for_args):
-    assert Comment.objects.count() == 1
-    url = DELETE_URL
-    response = reader_client.delete(url)
+    comments_count = Comment.objects.count()
+    comment_author = comment.author
+    comment_news = comment.news
+    comment_text = comment.text
+    response = reader_client.post(DELETE_URL)
     assert response.status_code == HTTPStatus.NOT_FOUND
-    assert Comment.objects.count() == 1
+    comments = Comment.objects.count()
+    comment.refresh_from_db()
+    assert comment.news == comment_news
+    assert comment.author == comment_author
+    assert comment.text == comment_text
+    assert comments_count == comments
 
 
 @pytest.mark.django_db
 def test_user_cant_edit_comment_of_another_user(reader_client,
                                                 comment,
                                                 form_data):
-    comment_object = comment.text
-    url = EDIT_URL
-    response = reader_client.post(url, data=form_data)
-    comment.refresh_from_db()
     comments_count = Comment.objects.count()
-    expected_count = 1
+    comment_object = comment.text
+    response = reader_client.post(EDIT_URL, data=form_data)
+    comment.refresh_from_db()
+    expected_count = Comment.objects.count()
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert comments_count == expected_count
     assert comment.text == comment_object
