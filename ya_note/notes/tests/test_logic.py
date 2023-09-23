@@ -11,6 +11,7 @@ from notes.models import Note
 User = get_user_model()
 
 URL_NOTES_SUCCESS = reverse('notes:success')
+URL_NOTES_ADD = reverse('notes:add')
 
 
 class TestNoteCreateEditDelete(TestCase):
@@ -37,7 +38,7 @@ class TestNoteCreateEditDelete(TestCase):
 
         cls.success_url = URL_NOTES_SUCCESS
         cls.edit_url = reverse('notes:edit', args=(cls.note.slug,))
-        cls.add_url = reverse('notes:add')
+        cls.add_url = URL_NOTES_ADD
         cls.delete_url = reverse('notes:delete', args=(cls.note.slug,))
 
         cls.form_data = {
@@ -54,15 +55,17 @@ class TestNoteCreateEditDelete(TestCase):
         self.assertEqual(Note.objects.count(), 1)
 
     def test_user_can_create_note(self):
-        response = self.reader_client.post(self.add_url, data=self.form_data)
-        self.assertRedirects(response, self.success_url)
-        notes_count = Note.objects.count()
-        self.assertEqual(notes_count, 1)
-        notes = Note.objects.get()
-        self.assertEqual(notes.title, self.form_data['title'])
-        self.assertEqual(notes.text, self.form_data['text'])
-        self.assertEqual(notes.slug, self.form_data['slug'])
-        self.assertEqual(notes.author, self.author)
+        notes_before_creation = set(Note.objects.all())
+        response = self.reader_client.post(URL_NOTES_ADD,
+                                           data=self.form_data)
+        self.assertRedirects(response, URL_NOTES_SUCCESS)
+        created_notes = set(Note.objects.all()) - notes_before_creation
+        self.assertTrue(len(created_notes), 1)
+        note = created_notes.pop()
+        self.assertEqual(note.title, self.form_data['title'])
+        self.assertEqual(note.text, self.form_data['text'])
+        self.assertEqual(note.slug, self.form_data['slug'])
+        self.assertEqual(note.author, self.reader_client)
 
     def test_unique_slug(self):
         self.form_data['slug'] = self.note.slug
