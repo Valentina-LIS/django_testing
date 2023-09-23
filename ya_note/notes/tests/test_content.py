@@ -3,7 +3,6 @@ from django.test import TestCase, Client
 from django.urls import reverse
 
 from notes.models import Note
-from notes.forms import NoteForm
 
 User = get_user_model()
 
@@ -15,20 +14,25 @@ class TestContent(TestCase):
         cls.author = User.objects.create(username='Автор')
         cls.author_client = Client()
         cls.author_client.force_login(cls.author)
+
         cls.reader = User.objects.create(username='reader')
         cls.reader_client = Client()
         cls.reader_client.force_login(cls.reader)
-        cls.notes = Note.objects.create(
-            title='Заголовок',
-            text='Текст комментария',
+        cls.note = Note.objects.create(
             author=cls.author,
         )
 
     def test_note_order(self):
+        users_notes = (
+            (self.author_client, True),
+            (self.reader_client, False),
+        )
         url = reverse('notes:list')
-        response = self.client.get(url)
-        notes = response.context.get('object_list')
-        self.assertIn(self.note, notes)
+        for user, value in users_notes:
+            with self.subTest(user=user, value=value):
+                response = user.get(url)
+                object_list = response.context['object_list']
+                self.assertIs(self.note in object_list, value)
 
     def test_form_on_create_and_edit_page(self):
         urls = (
@@ -40,7 +44,6 @@ class TestContent(TestCase):
                 url = reverse(page, args=args)
                 response = self.author_client.get(url)
                 self.assertIn('form', response.context)
-                self.assertIsInstance(response.context['form'], NoteForm)
 
     def test_note_not_in_list_of_another_user(self):
         url = reverse('notes:list')

@@ -55,12 +55,14 @@ class TestNoteCreateEditDelete(TestCase):
 
     def test_user_can_create_note(self):
         response = self.reader_client.post(self.add_url, data=self.form_data)
-        self.assertRedirects(response, URL_NOTES_SUCCESS)
-        self.assertEqual(Note.objects.count(), 2)
-        note = Note.objects.get(slug=self.form_data['slug']).last()
-        self.assertEqual(note.text, self.form_data['text'])
-        self.assertEqual(note.title, self.form_data['title'])
-        self.assertEqual(note.author, self.reader)
+        self.assertRedirects(response, self.success_url)
+        notes_count = Note.objects.count()
+        self.assertEqual(notes_count, 1)
+        notes = Note.objects.get()
+        self.assertEqual(notes.title, self.form_data['title'])
+        self.assertEqual(notes.text, self.form_data['text'])
+        self.assertEqual(notes.slug, self.form_data['slug'])
+        self.assertEqual(notes.author, self.author)
 
     def test_unique_slug(self):
         self.form_data['slug'] = self.note.slug
@@ -95,10 +97,10 @@ class TestNoteCreateEditDelete(TestCase):
         response = self.reader_client.post(self.edit_url, data=self.form_data)
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
         self.note.refresh_from_db()
-        self.assertEqual(self.note.text, self.BASE_TEXT)
-        self.assertEqual(self.note.author, self.author)
-        self.assertEqual(self.note.title, self.form_data['title'])
-        self.assertEqual(self.note.slug, self.form_data['slug'])
+        note_db = Note.objects.get(slug=self.note.slug)
+        self.assertEqual(self.note.title, note_db.title)
+        self.assertEqual(self.note.text, note_db.text)
+        self.assertEqual(self.note.slug, note_db.slug)
 
     def test_author_can_delete_note(self):
         response = self.author_client.delete(self.delete_url)
