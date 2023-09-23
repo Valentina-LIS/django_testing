@@ -55,17 +55,13 @@ class TestNoteCreateEditDelete(TestCase):
         self.assertEqual(Note.objects.count(), 1)
 
     def test_user_can_create_note(self):
-        notes_before_creation = set(Note.objects.all())
-        response = self.reader_client.post(URL_NOTES_ADD,
-                                           data=self.form_data)
-        self.assertRedirects(response, URL_NOTES_SUCCESS)
-        created_notes = set(Note.objects.all()) - notes_before_creation
-        self.assertTrue(len(created_notes), 1)
-        note = created_notes.pop()
-        self.assertEqual(note.title, self.form_data['title'])
-        self.assertEqual(note.text, self.form_data['text'])
-        self.assertEqual(note.slug, self.form_data['slug'])
-        self.assertEqual(note.author, self.reader_client)
+        response = self.reader_client.post(self.add_url, data=self.form_data)
+        self.assertRedirects(response, reverse('notes:success'))
+        self.assertEquals(Note.objects.count(), 2)
+        note = Note.objects.get(slug=self.form_data['slug'])
+        self.assertEquals(note.text, self.form_data['text'])
+        self.assertEquals(note.title, self.form_data['title'])
+        self.assertEquals(note.author, self.reader)
 
     def test_unique_slug(self):
         self.form_data['slug'] = self.note.slug
