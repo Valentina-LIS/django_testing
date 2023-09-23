@@ -23,10 +23,10 @@ def test_anonymous_user_cant_create_comment(client, form_data):
 
 
 @pytest.mark.django_db
-def test_user_can_create_comment(admin_client, form_data,
+def test_user_can_create_comment(author_client, form_data,
                                  author, news):
     url = DETAIL_URL
-    response = admin_client.post(url, data=form_data)
+    response = author_client.post(url, data=form_data)
     expected_url = f'{url}#comments'
     assertRedirects(response, expected_url)
     comments_count = Comment.objects.count()

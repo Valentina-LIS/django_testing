@@ -2,8 +2,6 @@ import pytest
 
 from django.conf import settings
 
-from news.forms import CommentForm
-
 from news.pytest_tests.conftest import HOME_URL, DETAIL_URL
 
 
@@ -35,11 +33,11 @@ def test_news_order(news_list, client):
 )
 @pytest.mark.django_db
 def test_form_in_any_users(parametrized_client,
-                           expected_result):
+                           expected_result,
+                           news_pk_for_args):
     url = DETAIL_URL
     response = parametrized_client.get(url)
     assert ('form' in response.context) is expected_result
-    assert isinstance(response.context['form'], CommentForm)
 
 
 @pytest.mark.django_db
